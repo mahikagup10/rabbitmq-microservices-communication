@@ -1,0 +1,73 @@
+version: "3"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  producer:
+    build: ./producer
+    container_name: producer
+    ports:
+      - "5000:5000"
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  consumer_one:
+    build: ./consumer_one
+    container_name: consumer_one
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  consumer_two:
+    build: ./consumer_two
+    container_name: consumer_two
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  consumer_three:
+    build: ./consumer_three
+    container_name: consumer_three
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  consumer_four:
+    build: ./consumer_four
+    container_name: consumer_four
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+      - microservices_network
+
+  db:
+    image: mongo:latest
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    networks:
+      - microservices_network
+
+networks:
+  rabbitmq_network:
+    driver: bridge
+  microservices_network:
+    driver: bridge
