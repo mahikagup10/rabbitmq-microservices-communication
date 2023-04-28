@@ -1,58 +1,29 @@
 import pika
-import pymongo
-import json
 import time
+from flask import Flask, request, jsonify
+from flask_pymongo import PyMongo
+import certifi
+from pymongo.mongo_client import MongoClient
 
-time.sleep(30)  # Add delay of 30 seconds
-
-connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
+app = Flask(__name__)
+# uri = "mongodb+srv://vidisha:vidisha@cc.cybmvzj.mongodb.net/studentdb?retryWrites=true&w=majority"
+uri = 'mongodb+srv://charan:charan@cc-project.fgyiawm.mongodb.net/test'
+client = MongoClient(uri,tlsCAFile=certifi.where())
+db = client['studentdb']
+collection = db["student"]
+sleepTime = 20
+time.sleep(sleepTime)
+print('Consumer_three connecting to server ...')
+connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
 channel = connection.channel()
+channel.queue_declare(queue='delete_record', durable=True)
 
-channel.queue_declare(queue='delete_record')
-
-client = pymongo.MongoClient('mongodb://mongo:27017/')
-db = client['student_db']
-collection = db['students']
-
-
-def delete_record(ch, method, properties, body):
-    srn = body.decode('utf-8')
-    collection.delete_one({'srn': srn})
-    print(f"Record with SRN {srn} deleted from the database.")
+def callback(ch, method, properties, body):
+    b = body.decode()
+    collection.delete_one({"SRN":b})
     ch.basic_ack(delivery_tag=method.delivery_tag)
-
-
+    return "Student deleted successfully!"
+    
 channel.basic_qos(prefetch_count=1)
-channel.basic_consume(queue='delete_record', on_message_callback=delete_record)
-
-print('Waiting for delete requests...')
+channel.basic_consume(queue='delete_record', on_message_callback=callback)
 channel.start_consuming()
-
-
-
-# import pika
-# import pymongo
-# import json
-
-# connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
-# channel = connection.channel()
-
-# channel.queue_declare(queue='delete_record')
-
-# client = pymongo.MongoClient('mongodb://mongo:27017/')
-# db = client['student_db']
-# collection = db['students']
-
-
-# def delete_record(ch, method, properties, body):
-#     srn = body.decode('utf-8')
-#     collection.delete_one({'srn': srn})
-#     print(f"Record with SRN {srn} deleted from the database.")
-#     ch.basic_ack(delivery_tag=method.delivery_tag)
-
-
-# channel.basic_qos(prefetch_count=1)
-# channel.basic_consume(queue='delete_record', on_message_callback=delete_record)
-
-# print('Waiting for delete requests...')
-# channel.start_consuming()
