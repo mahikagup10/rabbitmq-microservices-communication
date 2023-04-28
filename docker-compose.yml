@@ -1,73 +1,52 @@
-version: "3"
+version: '3'
+
 services:
   rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
+    image: 'rabbitmq:3.6-management-alpine'
     ports:
-      - "15672:15672"
-      - "5672:5672"
-    networks:
-      - rabbitmq_network
-      - microservices_network
+      - '5672:5672'
+      - '15672:15672'
+    restart: always
+  consumer_one:
+    build: consumer_one
+    volumes:
+      - ./consumer_one:/healthcheck
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+  
+  consumer_two:
+    build: consumer_two
+    volumes:
+      - ./consumer_two:/insertion
+    environment:
+      - PYTHONUNBUFFERED=1
+    ports:
+      - 27017:27017
+    restart: always
+  
+  consumer_three:
+    build: consumer_three
+    volumes:
+      - ./consumer_three:/deletion
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    # ports:
+    #   - 27017:27017
+  
+  consumer_four:
+    build: consumer_four
+    volumes:
+      - ./consumer_four:/read
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
 
   producer:
-    build: ./producer
-    container_name: producer
+    build: producer
+    volumes:
+      - ./producer:/producer
     ports:
-      - "5000:5000"
-    depends_on:
-      - rabbitmq
-    networks:
-      - rabbitmq_network
-      - microservices_network
-
-  consumer_one:
-    build: ./consumer_one
-    container_name: consumer_one
-    depends_on:
-      - rabbitmq
-    networks:
-      - rabbitmq_network
-      - microservices_network
-
-  consumer_two:
-    build: ./consumer_two
-    container_name: consumer_two
-    depends_on:
-      - rabbitmq
-    networks:
-      - rabbitmq_network
-      - microservices_network
-
-  consumer_three:
-    build: ./consumer_three
-    container_name: consumer_three
-    depends_on:
-      - rabbitmq
-    networks:
-      - rabbitmq_network
-      - microservices_network
-
-  consumer_four:
-    build: ./consumer_four
-    container_name: consumer_four
-    depends_on:
-      - rabbitmq
-    networks:
-      - rabbitmq_network
-      - microservices_network
-
-  db:
-    image: mongo:latest
-    container_name: mongo
+      - 5000:5000
     restart: always
-    ports:
-      - "27017:27017"
-    networks:
-      - microservices_network
-
-networks:
-  rabbitmq_network:
-    driver: bridge
-  microservices_network:
-    driver: bridge
