@@ -1,33 +1,38 @@
 import pika
-import json
-import pymongo
 import time
+from flask import Flask, request, jsonify
+# from flask_pymongo import PyMongo
+import certifi
+from pymongo.mongo_client import MongoClient
 
-time.sleep(30)  
+app = Flask(__name__)
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
-channel = connection.channel()
-channel.queue_declare(queue='insert_record', durable=True)
-
-
-mongo_url = "mongodb://localhost:27017/"
-mongo_client = pymongo.MongoClient(mongo_url)
-mongo_db = mongo_client["student_db"]
-mongo_collection = mongo_db["students"]
-
-    
-
-def insert_record(ch, method, properties, body):
-    print(f" [x] Received {body}")
-    data = json.loads(body)
-    mongo_collection.insert_one(data)
-    print(" [x] Record inserted successfully")
+def callback(ch, method, properties, body):
+    b = body.decode()
+    b = b.split(".")
+    dict1 = {"SRN": b[0],"Name":b[1],"Section":b[2]}
+    collection.insert_one(dict1)
     ch.basic_ack(delivery_tag=method.delivery_tag)
+    return "Student saved successfully!"
 
+# uri = "mongodb+srv://vidisha:vidisha@cc.cybmvzj.mongodb.net/studentdb?retryWrites=true&w=majority"
+uri = 'mongodb+srv://charan:charan@cc-project.fgyiawm.mongodb.net/test'
+try:
+    client = MongoClient(uri,tlsCAFile=certifi.where())
+    db = client['studentdb']
+    collection = db["student"]
+    sleepTime = 20
+    time.sleep(sleepTime)
+    print('Consumer_two connecting to server ...')
     
-
-channel.basic_qos(prefetch_count=1)
-channel.basic_consume(queue='insert_record', on_message_callback=insert_record)
-print(' [*] Waiting for messages. To exit press CTRL+C')
-channel.start_consuming()
-
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+    channel = connection.channel()
+    channel.queue_declare(queue='insert_record', durable=True)
+    
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue='insert_record', on_message_callback=callback)
+    channel.start_consuming()
+except Exception as e:
+    print(f"Error connecting to MongoDB: {str(e)}")
+finally:
+    client.close()
