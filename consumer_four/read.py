@@ -1,53 +1,31 @@
 import pika
-import pymongo
 import time
+from flask import Flask, request, jsonify
+from flask_pymongo import PyMongo
+import certifi
+from pymongo.mongo_client import MongoClient
 
-time.sleep(30)  
-
-# RabbitMQ connection details
-RMQ_HOST = "rabbitmq"
-RMQ_PORT = 5672
-RMQ_USER = "guest"
-RMQ_PASS = "guest"
-
-# MongoDB connection details
-MONGO_HOST = "mongodb"
-MONGO_PORT = 27017
-MONGO_DB = "student_db"
-MONGO_COLLECTION = "students"
-
-# Create a connection with RabbitMQ
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(
-        host=RMQ_HOST,
-        port=RMQ_PORT,
-        credentials=pika.PlainCredentials(RMQ_USER, RMQ_PASS),
-    )
-)
+app = Flask(__name__)
+# uri = "mongodb+srv://vidisha:vidisha@cc.cybmvzj.mongodb.net/studentdb?retryWrites=true&w=majority"
+uri = 'mongodb+srv://charan:charan@cc-project.fgyiawm.mongodb.net/test'
+# client = MongoClient("mongodb://localhost:27017",port=27017)
+client = MongoClient(uri,tlsCAFile=certifi.where())
+db = client['studentdb']
+collection = db["student"]
+sleepTime = 20
+time.sleep(sleepTime)
+print('Consumer_four connecting to server ...')
+connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
 channel = connection.channel()
+channel.queue_declare(queue='read_database', durable=True)
 
-# Create a connection with MongoDB
-client = pymongo.MongoClient(MONGO_HOST, MONGO_PORT)
-db = client[MONGO_DB]
-collection = db[MONGO_COLLECTION]
+def callback(ch, method, properties, body):
+    ans = collection.find({})
+    for document in ans:
+        print(document)
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+    return "Database read"
 
-# Declare the queue
-channel.queue_declare(queue="read_database")
-
-
-# Callback function to process messages
-def read_database(ch, method, properties, body):
-    print(f" [x] Received {body.decode()}")
-
-    # Retrieve all records from the collection
-    records = collection.find()
-    print("All records in the database:")
-    for record in records:
-        print(record)
-
-
-# Consume messages from the queue
-channel.basic_consume(queue="read_database", on_message_callback=read_database, auto_ack=True)
-
-print(" [*] Waiting for messages. To exit press CTRL+C")
+channel.basic_qos(prefetch_count=1)
+channel.basic_consume(queue='read_database', on_message_callback=callback)
 channel.start_consuming()
