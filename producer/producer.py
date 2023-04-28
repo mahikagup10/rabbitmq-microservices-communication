@@ -1,110 +1,77 @@
-from flask import Flask, request
+from flask import Flask
 import pika
-import json
-import time
-
-time.sleep(30)  
 
 app = Flask(__name__)
 
-
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
-
-
-
-# Connect to RabbitMQ
-# connection = pika.BlockingConnection(
-#     pika.ConnectionParameters(host='rabbitmq', port=5672))
-channel = connection.channel()
-
-# Create health_check queue
-# channel.queue_declare(queue='health_check', durable=True)
-
-# # Create insert_record queue
-# channel.queue_declare(queue='insert_record', durable=True)
-
-# # Create delete_record queue
-# channel.queue_declare(queue='delete_record', durable=True)
-
-# # Create read_database queue
-# channel.queue_declare(queue='read_database', durable=True)
-
-# Publish message to RabbitMQ
-def publish(queue_name, message):
-    channel.basic_publish(exchange='',
-                          routing_key=queue_name,
-                          body=json.dumps(message),
-                          properties=pika.BasicProperties(
-                              delivery_mode=2,  # make message persistent
-                          ))
-    print(f"Sent {message} to queue {queue_name}")
+@app.route('/')
+def index():
+    return 'OK'
 
 
-# Endpoint to perform health check on a consumer
-@app.route('/health_check', methods=['POST'])
-def health_check():
-    data = request.json
-    consumer_name = data['consumer_name']
-    message = {'action': 'health_check'}
-    publish(consumer_name, message)
-    return 'Message sent to consumer'
+@app.route('/healthcheck')
+def Ack():
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+    channel = connection.channel()
+    channel.queue_declare(queue='health_check', durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key='health_check',
+        body="Health check message sent",
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # make message persistent
+        ))
+    connection.close()
+    print("Health check message sent")
+    return "Health check message sent\n"
 
+@app.route('/insert_record/<SRN>/<Name>/<Section>', methods=["POST"])
+def insert_record(SRN,Name,Section):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+    b= SRN+"."+Name+"."+Section
+    channel = connection.channel()
+    channel.queue_declare(queue='insert_record', durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key='insert_record',
+        body= b,
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # make message persistent
+        ))
+    connection.close()
+    print(" Message to insert record sent")
+    return " Message to insert record sent " 
 
-# Endpoint to insert a record into the database
-@app.route('/insert_record', methods=['POST'])
-def insert_record():
-    data = request.json
-    message = {'action': 'insert_record', 'data': data}
-    publish('insert_record', message)
-    return 'Record inserted'
+@app.route('/delete_record/<SRN>', methods=["GET"])
+def delete_record(SRN):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+    b= SRN
+    channel = connection.channel()
+    channel.queue_declare(queue='delete_record', durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key='delete_record',
+        body= b,
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # make message persistent
+        ))
+    connection.close()
+    print(" Message to delete record sent")
+    return " Message to delete record sent " 
 
-
-# Endpoint to delete a record from the database
-@app.route('/delete_record', methods=['POST'])
-def delete_record():
-    data = request.json
-    srn = data['srn']
-    message = {'action': 'delete_record', 'srn': srn}
-    publish('delete_record', message)
-    return 'Record deleted'
-
-
-# Endpoint to read all records from the database
-@app.route('/read_database', methods=['POST'])
+@app.route('/read_database/', methods=["GET"])
 def read_database():
-    message = {'action': 'read_database'}
-    publish('read_database', message)
-    return 'Message sent to consumer'
-
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+    channel = connection.channel()
+    channel.queue_declare(queue='read_database', durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key='read_database',
+        body="Read Database message sent",
+        properties=pika.BasicProperties(
+            delivery_mode=2,  # make message persistent
+        ))
+    connection.close()
+    print(" Message to retrieve all records sent")
+    return " Message to retrieve all records sent " 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
-# import pika
-
-# # Establish a connection to RabbitMQ
-# credentials = pika.PlainCredentials('rabbitmquser', 'rabbitmqpassword')
-# parameters = pika.ConnectionParameters('rabbitmq', 5672, '/', credentials)
-# connection = pika.BlockingConnection(parameters)
-
-# # Create a channel
-# channel = connection.channel()
-
-# # Declare an exchange
-# channel.exchange_declare(exchange='microservices-exchange', exchange_type='direct')
-
-# # Declare queues
-# channel.queue_declare(queue='health-check-queue')
-# channel.queue_declare(queue='insertion-queue')
-# channel.queue_declare(queue='read-queue')
-# channel.queue_declare(queue='deletion-queue')
-
-# # Bind queues to the exchange
-# channel.queue_bind(queue='health-check-queue', exchange='microservices-exchange', routing_key='health_check')
-# channel.queue_bind(queue='insertion-queue', exchange='microservices-exchange', routing_key='insert_record')
-# channel.queue_bind(queue='read-queue', exchange='microservices-exchange', routing_key='read_database')
-# channel.queue_bind(queue='deletion-queue', exchange='microservices-exchange', routing_key='delete_record')
-
-# # Close the connection
-# connection.close()
+    app.run(debug=True, host='0.0.0.0')

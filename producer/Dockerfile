@@ -1,10 +1,10 @@
-FROM python:3.8-slim-buster
+FROM library/python:3.6-stretch
+COPY ./requirements.txt /producer/requirements.txt
+WORKDIR /producer
+RUN pip3 install pika && \
+    pip3 install MarkupSafe==2.0.0 && \
+    pip3 install -r requirements.txt 
 
-WORKDIR /microservices-rabbitmq/producer
-
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY producer.py .
-
-CMD [ "python", "/microservices-rabbitmq/producer/producer.py" ]
+COPY . /producer
+ENTRYPOINT [ "python3" ]
+CMD [ "producer.py" ]
